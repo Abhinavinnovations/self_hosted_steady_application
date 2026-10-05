@@ -16,6 +16,8 @@ import * as Haptics from "expo-haptics";
 import { useFocusAwake } from "@/hooks/use-focus-awake";
 import { focusKey, remainingAt } from "@/lib/focus-progress";
 import { readFocus, saveFocus } from "@/lib/focus-storage";
+import { createFocusCompletionCue } from "@/lib/focus-completion-cue";
+import { prepareFocusCompletionSound } from "@/lib/focus-completion-sound";
 import { Colors, Fonts } from "@/constants/theme";
 import { useToday } from "@/queries/steady";
 import { useTodos, useToggleTodo } from "@/queries/todos";
@@ -154,14 +156,24 @@ export default function TimerScreen() {
     };
   }, [item, storeKey, remaining, totalSeconds]);
 
-  // Tick.
+  const cueRef = useRef<ReturnType<typeof createFocusCompletionCue> | null>(null);
+  const stoppingRef = useRef(false);
   const armed = remaining !== null;
+  useEffect(() => {
+    if (!armed) return;
+    const cue = createFocusCompletionCue(latestRef.current ?? 0, prepareFocusCompletionSound);
+    cueRef.current = cue;
+    return () => { cue.dispose(); cueRef.current = null; };
+  }, [armed]);
+
+  // Tick. Only a running countdown can emit the completion sound.
   useEffect(() => {
     if (!armed || paused) return;
     const id = setInterval(() => {
-      if (endRef.current === null) return;
+      if (endRef.current === null || stoppingRef.current || finishedRef.current) return;
       const left = Math.round((endRef.current - Date.now()) / 1000);
       const next = left > 0 ? left : 0;
+      cueRef.current?.tick(next);
       latestRef.current = next;
       setRemaining(next);
       // Checkpoint every few seconds so a killed app still resumes closely.
@@ -234,11 +246,14 @@ export default function TimerScreen() {
   }
 
   async function stop() {
+    if (stoppingRef.current) return;
+    stoppingRef.current = true;
     const left = remainingAt(endRef.current, latestRef.current, pausedRef.current, Date.now());
     try {
       if (storeKey && left !== null) await saveFocus(storeKey, left);
       if (mounted.current) { if (router.canGoBack()) router.back(); else router.replace("/(tabs)"); }
     } catch {
+      stoppingRef.current = false;
       if (mounted.current) setSaveError("Focus progress could not be stored. Check device storage, then try Stop again.");
     }
   }
