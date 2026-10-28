@@ -50,6 +50,32 @@ jobs:
 
       - uses: gradle/actions/setup-gradle@v4
 
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/share/boost /usr/local/lib/node_modules /opt/hostedtoolcache/CodeQL /usr/local/.ghcup || true
+          df -h /
+
+      # Gradle's on-demand NDK download is flaky (truncated zip -> "Archive is not a ZIP archive").
+      # Install the exact SDK pieces up front with sdkmanager, retrying on a bad download.
+      - name: Install Android SDK components
+        env:
+          NDK_VERSION: "27.1.12297006"
+        run: |
+          SDKM="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKM" --licenses > /dev/null || true
+          for i in 1 2 3 4; do
+            if "$SDKM" --install "ndk;$NDK_VERSION" "cmake;3.22.1" "build-tools;36.0.0" "platforms;android-36" > /tmp/sdk.log 2>&1 \
+               && [ -f "$ANDROID_HOME/ndk/$NDK_VERSION/source.properties" ]; then
+              echo "SDK components installed (attempt $i)"; break
+            fi
+            tail -20 /tmp/sdk.log
+            echo "Attempt $i failed, cleaning and retrying..."
+            rm -rf "$ANDROID_HOME/ndk/$NDK_VERSION" "$ANDROID_HOME/.temp" "$HOME/.android/cache"
+            [ "$i" = 4 ] && exit 1
+            sleep 15
+          done
+          ls "$ANDROID_HOME/ndk"
+
       - name: Install dependencies
         run: bun install --frozen-lockfile
 
