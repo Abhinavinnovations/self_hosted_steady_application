@@ -12,6 +12,10 @@ Steady is a mobile-first Expo app with a Hono API and a React web companion. The
 
 This is the original September 26, 2026 cut, not the second version. It uses fictional demo data and shows the interface as it existed when recorded; later changes are documented below.
 
+## Self-hosting (free, personal use)
+
+This fork runs without Runable: Render (backend), Turso (database), Google Cloud OAuth (Google sign-in), Gmail via Apps Script (email), Gemini (voice) and GitHub Actions (signed APK). Follow **[SELF_HOSTING.md](./SELF_HOSTING.md)**.
+
 ## Three ways to use Steady
 
 | Area | Purpose | Rules |
