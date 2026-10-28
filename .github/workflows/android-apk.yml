@@ -1,0 +1,103 @@
+name: Android APK
+
+# Builds an installable, release-mode APK (no Expo account needed) and publishes it
+# as a GitHub Release you can open and download on your phone.
+on:
+  workflow_dispatch:
+    inputs:
+      api_url:
+        description: "Backend URL (leave blank to use the STEADY_API_URL repo variable / app.json)"
+        required: false
+  push:
+    branches: [main]
+    paths:
+      - "packages/mobile/**"
+      - "packages/web/src/api/**"
+      - ".github/workflows/android-apk.yml"
+
+concurrency:
+  group: android-apk
+  cancel-in-progress: true
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: write
+    env:
+      ELECTRON_SKIP_BINARY_DOWNLOAD: "1"
+      STEADY_API_URL: ${{ inputs.api_url || vars.STEADY_API_URL }}
+      ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Release keystore
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/steady-release.jks"
+            echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/steady-release.jks" >> "$GITHUB_ENV"
+            echo "Signing with your release keystore."
+          else
+            echo "::warning::ANDROID_KEYSTORE_BASE64 secret not set - APK is signed with a throwaway debug key. Add the signing secrets (see SELF_HOSTING.md) so updates install over each other."
+          fi
+
+      - name: Show backend URL baked into the app
+        working-directory: packages/mobile
+        run: node -e "const c=require('./app.config.js')({config:require('./app.json').expo});console.log('apiUrl =',c.extra.apiUrl)"
+
+      - name: Expo prebuild (android)
+        working-directory: packages/mobile
+        run: bunx expo prebuild --platform android --clean --no-install
+
+      - name: Gradle assembleRelease
+        working-directory: packages/mobile/android
+        run: ./gradlew assembleRelease --no-daemon -PreactNativeArchitectures=arm64-v8a,armeabi-v7a -Dorg.gradle.jvmargs="-Xmx4g -XX:MaxMetaspaceSize=1g"
+
+      - name: Rename APK
+        id: apk
+        run: |
+          VERSION=$(node -p "require('./packages/mobile/app.json').expo.version")
+          OUT="steady-${VERSION}-build${{ github.run_number }}.apk"
+          cp packages/mobile/android/app/build/outputs/apk/release/app-release.apk "$OUT"
+          echo "file=$OUT" >> "$GITHUB_OUTPUT"
+          ls -la "$OUT"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: steady-apk
+          path: ${{ steps.apk.outputs.file }}
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: apk-build-${{ github.run_number }}
+          name: Steady APK build ${{ github.run_number }}
+          body: |
+            Install on Android: open this page on your phone, tap the .apk, allow "Install unknown apps" for your browser.
+            Backend: ${{ env.STEADY_API_URL || 'app.json default' }}
+          files: ${{ steps.apk.outputs.file }}
+          make_latest: true

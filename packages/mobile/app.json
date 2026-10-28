@@ -2,7 +2,7 @@
   "expo": {
     "icon": "./assets/icon.png",
     "android": {
-      "package": "com.steady_7ogf.runable",
+      "package": "com.abhinavinnovations.steady",
       "adaptiveIcon": {
         "foregroundImage": "./assets/icon.png",
         "backgroundColor": "#101316"
@@ -13,12 +13,10 @@
       ]
     },
     "extra": {
-      "apiUrl": "https://steady-7wy0t47-preview-4200.runable.site/",
-      "applicationId": "steady-7wy0t47",
-      "runableAuthIssuer": "https://api.runable.com/api/auth"
+      "apiUrl": "https://steady-api.onrender.com"
     },
     "ios": {
-      "bundleIdentifier": "com.steady_7ogf.runable",
+      "bundleIdentifier": "com.abhinavinnovations.steady",
       "supportsTablet": true
     },
     "splash": {
@@ -29,7 +27,7 @@
     "name": "Steady",
     "slug": "steady",
     "version": "1.0.0",
-    "scheme": "runable-steady-7wy0t47",
+    "scheme": "steady",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
@@ -50,7 +48,8 @@
           "microphonePermission": "Allow Steady to hear the tasks you choose to dictate.",
           "speechRecognitionPermission": "Allow Steady to show words as you speak. Your speech service may process audio online."
         }
-      ]
+      ],
+      "./plugins/with-release-signing"
     ]
   }
 }

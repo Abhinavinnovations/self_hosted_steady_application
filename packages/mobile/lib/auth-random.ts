@@ -20,6 +20,8 @@ export function googleError(code?: string): string | null {
     EXCHANGE_FAILED: "Google sign-in could not finish. Check your connection and retry. [AUTH_EXCHANGE]",
     POPUP_BLOCKED: "Allow popups for Steady, then try Google again. [AUTH_POPUP]",
     POPUP_TIMEOUT: "Google sign-in timed out. Please try again. [AUTH_TIMEOUT]",
+    GOOGLE_NOT_CONFIGURED: "Google sign-in isn't set up on this Steady server yet (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET). [AUTH_CONFIG]",
+    UNSUPPORTED: "Google sign-in is available in the Android app. [AUTH_PLATFORM]",
   };
   return errors[code ?? ""] ?? "Google sign-in could not open or finish. Check your connection and default browser, then retry. [AUTH_START]";
 }

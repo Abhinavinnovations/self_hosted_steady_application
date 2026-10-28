@@ -1,5 +1,5 @@
 import nodemailer from "nodemailer";
-import { gmailConfiguration } from "./email-config";
+import { gmailConfiguration, gmailRelayConfiguration, gmailTransport } from "./email-config";
 import type { EmailOutcome, SendEmailOptions } from "./email";
 
 function transport(config: NonNullable<ReturnType<typeof gmailConfiguration>>) {
@@ -30,6 +30,7 @@ export async function sendGmailEmail(options: SendEmailOptions): Promise<EmailOu
   // One concrete recipient only; no accidental address lists, headers, files or URLs.
   if (!/^[^\s<>(),;@]+@[^\s<>(),;@]+\.[^\s<>(),;@]+$/.test(options.to))
     return { outcome: "failed", providerId: null, code: "recipient_invalid" };
+  if (gmailTransport() === "apps_script") return sendViaAppsScript(config.user, options);
   let smtp: ReturnType<typeof transport> | undefined;
   try {
     smtp = transport(config);
@@ -60,4 +61,32 @@ export async function verifyGmailConnection(): Promise<{ ok: boolean; code: stri
     return { ok: true, code: "gmail_authenticated_no_email_sent" };
   } catch (error) { return { ok: false, code: safeFailure(error).code }; }
   finally { smtp?.close(); }
+}
+
+/**
+ * HTTPS relay through a Google Apps Script web app owned by GMAIL_USER (see deploy/gmail-relay.gs).
+ * The script sends with MailApp as that same Gmail account and reports which account sent it,
+ * so the sender can never silently differ from GMAIL_USER. Same outcome contract as SMTP:
+ * a definite refusal is "failed"; a timeout or unreadable reply is "unknown" and never replayed.
+ */
+async function sendViaAppsScript(user: string, options: SendEmailOptions): Promise<EmailOutcome> {
+  const relay = gmailRelayConfiguration();
+  if (!relay) return { outcome: "failed", providerId: null, code: "sender_not_configured" };
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 25_000);
+  try {
+    const response = await fetch(relay.url, {
+      method: "POST", redirect: "follow", signal: controller.signal,
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify({ secret: relay.secret, to: options.to, subject: options.subject, text: options.text, html: options.html ?? "" }),
+    });
+    const data = await response.json().catch(() => null) as { ok?: unknown; id?: unknown; sender?: unknown; code?: unknown } | null;
+    if (!data) return { outcome: "unknown", providerId: null, code: "provider_unconfirmed" };
+    if (data.ok === true && typeof data.sender === "string" && data.sender.toLowerCase() === user)
+      return { outcome: "accepted", providerId: typeof data.id === "string" ? data.id : null, code: "provider_accepted" };
+    if (data.ok === true) return { outcome: "unknown", providerId: null, code: "sender_changed" };
+    return { outcome: "failed", providerId: null, code: data.code === "unauthorized" ? "sender_not_configured" : "provider_rejected" };
+  } catch {
+    return { outcome: "unknown", providerId: null, code: controller.signal.aborted ? "provider_timeout" : "provider_unconfirmed" };
+  } finally { clearTimeout(timer); }
 }

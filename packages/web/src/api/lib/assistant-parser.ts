@@ -5,7 +5,7 @@ import { generateText, type FilePart, type TextPart } from "ai";
 import { db } from "../database";
 import * as schema from "../database/schema";
 import { localDate } from "./dates";
-import { gateway } from "../agent/gateway";
+import { assistantModel } from "../agent/gateway";
 import { batchSchema, draftSchema, extractJson, MAX_AUDIO_BYTES, normalizeDraft, type AssistantInput } from "../../shared/assistant-draft";
 
 /** Parse-only: never inserts tasks, sends messages, or changes commitments. */
@@ -40,7 +40,7 @@ If no intelligible task was requested return ${many ? '{"transcript":"","drafts"
   } else content.push({ type: "text", text: input.transcript! });
   let raw: string;
   try {
-    const result = await generateText({ model: gateway("google/gemini-3-flash"), system, messages: [{ role: "user", content }], abortSignal: AbortSignal.timeout(45_000), maxRetries: 1 });
+    const result = await generateText({ model: assistantModel(), system, messages: [{ role: "user", content }], abortSignal: AbortSignal.timeout(45_000), maxRetries: 1 });
     raw = result.text;
   } catch (e) {
     console.error("[voice] gateway failed", e instanceof Error ? e.name : "UnknownError");

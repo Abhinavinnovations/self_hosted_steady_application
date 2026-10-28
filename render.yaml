@@ -1,0 +1,67 @@
+# Render Blueprint: Dashboard -> New -> Blueprint -> pick this repo.
+# Fill the `sync: false` values when Render asks. See SELF_HOSTING.md.
+services:
+  - type: web
+    name: steady-api
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      # Your public Render URL, e.g. https://steady-api.onrender.com (no trailing slash)
+      - key: WEBSITE_URL
+        sync: false
+      - key: BETTER_AUTH_SECRET
+        sync: false
+      - key: CRON_SECRET
+        generateValue: true
+      - key: APP_SCHEME
+        value: steady
+      # Turso (keep your existing database)
+      - key: DATABASE_URL
+        sync: false
+      - key: DATABASE_AUTH_TOKEN
+        sync: false
+      # Google sign-in (Google Cloud Console -> OAuth client ID, type "Web application")
+      - key: GOOGLE_CLIENT_ID
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      # Voice-to-task (Google AI Studio API key)
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GEMINI_MODEL
+        value: gemini-3-flash-preview
+      # Email via your Gmail, through the Apps Script relay (Render free blocks SMTP)
+      - key: EMAIL_PROVIDER
+        value: gmail
+      - key: GMAIL_TRANSPORT
+        value: apps_script
+      - key: GMAIL_USER
+        sync: false
+      - key: EMAIL_FROM
+        sync: false
+      - key: GMAIL_RELAY_URL
+        sync: false
+      - key: GMAIL_RELAY_SECRET
+        generateValue: true
+      # Accountability partner features
+      - key: INVITATION_DELIVERY_ENABLED
+        value: "true"
+      - key: RECIPIENT_FLOW_ENABLED
+        value: "true"
+      - key: MISS_ALERTS_ENABLED
+        value: "true"
+      # e.g. https://steady-api.onrender.com/invitation
+      - key: INVITATION_APP_URL
+        sync: false
+      # First local date that may trigger a missed-day email, YYYY-MM-DD
+      - key: MISS_ALERTS_START_DATE
+        sync: false
+      # Optional /admin database console key (leave blank to disable)
+      - key: ADMIN_KEY
+        sync: false
