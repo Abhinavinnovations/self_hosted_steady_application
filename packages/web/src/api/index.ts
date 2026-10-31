@@ -19,6 +19,7 @@ import { reminders } from "./routes/reminders";
 import { recipient } from "./routes/recipient";
 import { registerNativeGoogle } from "./services/native-google";
 import { registerCron } from "./services/cron";
+import { registerSchemaBootstrap } from "./services/schema-bootstrap";
 
 export const router = {
   ping,
@@ -47,6 +48,7 @@ const app = createApp(router);
 
 // Native Google sign-in bridge for the Android app, then the Better Auth handler
 // (email/password + Google). Keep-alive/missed-day sweep at /api/cron/tick.
+registerSchemaBootstrap(app);
 registerNativeGoogle(app);
 registerCron(app);
 app.on(["GET", "POST"], "/api/auth/*", (c) => auth.handler(c.req.raw));

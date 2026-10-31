@@ -13,7 +13,8 @@
     "preview": "bun run build && vite preview",
     "db:generate": "bun --env-file=../../.env drizzle-kit generate",
     "db:migrate": "bun --env-file=../../.env drizzle-kit migrate",
-    "db:push": "bun --env-file=../../.env drizzle-kit push"
+    "db:push": "bun --env-file=../../.env drizzle-kit push",
+    "db:bootstrap-sql": "bun scripts/gen-bootstrap-sql.ts"
   },
   "dependencies": {
     "@ai-sdk/google": "^3",
